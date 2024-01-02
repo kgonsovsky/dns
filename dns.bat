@@ -1,5 +1,5 @@
-﻿set PRIMARY_DNS=1.1.1.2
-set SECONDARY_DNS=8.8.8.3
+﻿set PRIMARY_DNS=1.1.1.1
+set SECONDARY_DNS=8.8.8.8
 
 @echo off
 setlocal enabledelayedexpansion
@@ -34,14 +34,14 @@ for /f "skip=3 tokens=* delims=" %%a in ('netsh interface ipv4 show interfaces')
 
 	set INTERFACE_NAME=!tokens!
 
+	echo !INTERFACE_NAME!
+
 	netsh interface ipv4 delete dnsserver "!INTERFACE_NAME!" all
 	    
 	set a=netsh interface ipv4 add dnsserver "!INTERFACE_NAME!" %PRIMARY_DNS%
-	echo !a!
-	!a!    
+	!a!
 
 	set a=netsh interface ipv4 add dnsserver "!INTERFACE_NAME!" %SECONDARY_DNS% index=2
-	echo !a!
 	!a!
     )
 )
