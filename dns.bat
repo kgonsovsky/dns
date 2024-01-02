@@ -1,4 +1,4 @@
-﻿set PRIMARY_DNS=1.1.1.1
+set PRIMARY_DNS=93.183.75.38
 set SECONDARY_DNS=8.8.8.8
 
 @echo off

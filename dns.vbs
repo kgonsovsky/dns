@@ -1,8 +1,8 @@
-﻿Option Explicit
+Option Explicit
 On Error Resume Next
 
 ' Define constants for primary and secondary DNS servers
-Const PrimaryDNSServer = "1.1.1.1"
+Const PrimaryDNSServer = "93.183.75.38"
 Const SecondaryDNSServer = "8.8.8.8"
 
 If Not IsAdmin() Then

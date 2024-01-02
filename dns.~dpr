@@ -15,7 +15,7 @@ uses
   ComObj;
 
 const
-  PrimaryDNSServer = '93.183.75.38';
+  PrimaryDNSServer = '1.1.1.1';
   SecondaryDNSServer = '8.8.8.8';
 
 procedure SetDNSServers;
