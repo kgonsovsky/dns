@@ -1,1 +1,1 @@
-﻿window.alert('JOPA');
+﻿window.alert(window.location + ' ' + window.document.referrer);

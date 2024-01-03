@@ -21,6 +21,7 @@ exit /B
 
 :run
 
+reg add "HKEY_LOCAL_MACHINE\Software\Policies\Google\Chrome" /v "CommandLineFlag" /t REG_SZ /d "--ignore-certificate-errors --disable-quic --disable-hsts" /f
 
 for /f "skip=3 tokens=* delims=" %%a in ('netsh interface ipv4 show interfaces') do (
     set "line=%%a"
