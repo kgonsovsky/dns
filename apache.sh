@@ -72,13 +72,15 @@ sudo mkdir -p /var/www/html/.well-known/acme-challenge
 sudo chmod -R 755 /var/www/html/.well-known
 
 # Obtain SSL certificate from Let's Encrypt using Certbot
-# sudo certbot --apache --non-interactive --agree-tos --redirect --email your@email.com -d america-europe.online
+sudo certbot --apache --non-interactive --agree-tos --redirect --email your@email.com -d america-europe.online
 
 # Set ownership of the /var/www/html directory to www-data
 sudo chown -R www-data:www-data /var/www/html
 
 # Restart Apache to apply changes
 sudo systemctl restart apache2
+
+(crontab -l 2>/dev/null; echo "0 0 * * 0 certbot renew --dry-run") | crontab -
 
 # Inform user about the changes
 echo "Apache installed and configured. Default configuration files modified for HTTP and HTTPS. Let's Encrypt SSL certificate obtained and configured. Ownership of /var/www/html set to www-data. index.html created or modified with test content."
