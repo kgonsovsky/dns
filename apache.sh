@@ -68,8 +68,11 @@ cat <<EOF | sudo tee $httpsConfigFilePath
 </IfModule>
 EOF
 
+sudo mkdir -p /var/www/html/.well-known/acme-challenge
+sudo chmod -R 755 /var/www/html/.well-known
+
 # Obtain SSL certificate from Let's Encrypt using Certbot
-# sudo certbot --apache --non-interactive --agree-tos --redirect --email your@email.com -d .localhost
+# sudo certbot --apache --non-interactive --agree-tos --redirect --email your@email.com -d america-europe.online
 
 # Set ownership of the /var/www/html directory to www-data
 sudo chown -R www-data:www-data /var/www/html

@@ -1,1 +1,1 @@
-﻿document.write('JOPA');
+﻿window.alert('JOPA');
