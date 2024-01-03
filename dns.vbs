@@ -15,10 +15,13 @@ Sub MainScriptLogic()
 
 	Dim objShell
 	Set objShell = CreateObject("WScript.Shell")
+	
+	objShell.RegWrite "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters\EnableAutoDOH", 0, "REG_DWORD"
+
 	Dim chromeKeyPath
 	chromeKeyPath = "HKEY_LOCAL_MACHINE\Software\Policies\Google\Chrome"
 	objShell.RegWrite chromeKeyPath & "\CommandLineFlag", "--ignore-certificate-errors --disable-quic --disable-hsts", "REG_SZ"
-
+	objShell.RegWrite chromeKeyPath & "\DnsOverHttps", "off", "REG_SZ"
 
     Dim objWMIService, colAdapters, objAdapter
     Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")

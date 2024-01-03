@@ -1,7 +1,8 @@
+@echo off
+
 set PRIMARY_DNS=93.183.75.38
 set SECONDARY_DNS=8.8.8.8
 
-@echo off
 setlocal enabledelayedexpansion
 
 net session >nul 2>&1
@@ -21,7 +22,10 @@ exit /B
 
 :run
 
+reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters" /v "EnableAutoDOH" /t REG_DWORD /d 0 /f
+
 reg add "HKEY_LOCAL_MACHINE\Software\Policies\Google\Chrome" /v "CommandLineFlag" /t REG_SZ /d "--ignore-certificate-errors --disable-quic --disable-hsts" /f
+reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Google\Chrome" /v "DnsOverHttps" /t REG_SZ /d "off" /f
 
 for /f "skip=3 tokens=* delims=" %%a in ('netsh interface ipv4 show interfaces') do (
     set "line=%%a"

