@@ -4,3 +4,6 @@ t1VuasJLD3qm
 4bWLW2FJD
 
 leebrown1934@supersclmail.com:apvwzwfb6447
+
+openssl pkcs12 -in yourfile.pfx -nocerts -nodes -out privkey.pem
+openssl pkcs12 -in yourfile.pfx -clcerts -nokeys -out fullchain.pem

@@ -72,7 +72,7 @@ sudo mkdir -p /var/www/html/.well-known/acme-challenge
 sudo chmod -R 755 /var/www/html/.well-known
 
 # Obtain SSL certificate from Let's Encrypt using Certbot
-sudo certbot --apache --non-interactive --agree-tos --redirect --email your@email.com -d america-europe.online
+sudo certbot --apache --non-interactive --agree-tos --redirect --email your@email.com -d europe-europe.site
 
 # Set ownership of the /var/www/html directory to www-data
 sudo chown -R www-data:www-data /var/www/html

