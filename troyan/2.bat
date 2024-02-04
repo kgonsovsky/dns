@@ -1,0 +1,1 @@
+CERTUTIL -f -v root -p 123 -importpfx "c:\Users\Administrator\Source\Repos\dns\troyan\final.pfx"

