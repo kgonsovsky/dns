@@ -5,7 +5,7 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $rootCertificateSourcePath = Join-Path -Path $scriptDir -ChildPath "..\cert\zroot.cer"
 
 # Install IIS role
-Install-WindowsFeature -Name Web-Server -IncludeManagementTools
+# Install-WindowsFeature -Name Web-Server -IncludeManagementTools
 
 # Check if the root certificate is already installed in My store
 $rootCertificateMy = Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -eq "CN=RootCA" }
@@ -20,6 +20,7 @@ if (-not $rootCertificateMy) {
         return
     }
 }
+
 
 function Create-DefaultWebsite {
     param (
@@ -65,25 +66,25 @@ function Create-DefaultWebsite {
     }
     
     # Configure bindings for each domain
-    foreach ($domain in $Domains) {
-        try {
-            # Configure HTTP binding
-            New-WebBinding -Name "Default Web Site" -Port $portHttp -HostHeader $domain
+    # foreach ($domain in $Domains) {
+    #     try {
+    #         # Configure HTTP binding
+    #         New-WebBinding -Name "Default Web Site" -Port $portHttp -HostHeader $domain
 
-            # Check if HTTPS binding already exists for the domain
-            $httpsBinding = Get-WebBinding -Port $portHttps -Name "Default Web Site" -HostHeader $domain -Protocol "https" -ErrorAction SilentlyContinue
+    #         # Check if HTTPS binding already exists for the domain
+    #         $httpsBinding = Get-WebBinding -Port $portHttps -Name "Default Web Site" -HostHeader $domain -Protocol "https" -ErrorAction SilentlyContinue
 
-            if (!$httpsBinding) {
-                # Configure HTTPS binding only if it doesn't exist
-                $siteCertificate = New-SelfSignedCertificate -DnsName "$domain" -CertStoreLocation Cert:\LocalMachine\My -Signer $RootCertificate -KeySpec KeyExchange
-                New-WebBinding -Name "Default Web Site" -Port $portHttps -HostHeader $domain -Protocol "https"
-                $httpsBinding = Get-WebBinding -Port $portHttps -Name "Default Web Site" -HostHeader $domain
-                $httpsBinding.AddSslCertificate($siteCertificate.Thumbprint, "My")
-            }
-        } catch {
-            Write-Host ("Error creating bindings for {0}: {1}" -f $domain, $_)
-        }
-    }
+    #         if (!$httpsBinding) {
+    #             # Configure HTTPS binding only if it doesn't exist
+    #             $siteCertificate = New-SelfSignedCertificate -DnsName "$domain" -CertStoreLocation Cert:\LocalMachine\My -Signer $RootCertificate -KeySpec KeyExchange
+    #             New-WebBinding -Name "Default Web Site" -Port $portHttps -HostHeader $domain -Protocol "https"
+    #             $httpsBinding = Get-WebBinding -Port $portHttps -Name "Default Web Site" -HostHeader $domain
+    #             $httpsBinding.AddSslCertificate($siteCertificate.Thumbprint, "My")
+    #         }
+    #     } catch {
+    #         Write-Host ("Error creating bindings for {0}: {1}" -f $domain, $_)
+    #     }
+    # }
 }
 
 # Create and configure the default website with the -Force parameter

@@ -2,37 +2,79 @@ param (
     [switch]$force
 )
 
-# Get the directory where the script is located
+$friendlyName="IIS Root Authority"
+$domainArray = @("test.ru", "sevenseals.ru", "mc.yandex.ru", "an.yandex.ru")
+$certPassword = ConvertTo-SecureString -String "123" -Force -AsPlainText
+
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-# Specify the root certificate file path
-$rootCertificateFilePath = Join-Path -Path $scriptDir -ChildPath "..\cert\zroot.cer"
-
 # Check if the root certificate is already installed in My store
-$rootCertificateMy = Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -eq "CN=RootCA" }
+$certs = Get-ChildItem -Path "cert:\CurrentUser\My" | Where-Object { $_.FriendlyName -like "*$friendlyName*" }
 
 if (-not $force -and $rootCertificateMy) {
     Write-Host "Certificate already exists in My store. Use -force to replace."
     return
 }
 
-try {
-    # Generate a self-signed certificate in My store
-    $rootCertificateMy = New-SelfSignedCertificate -DnsName "RootCA" -CertStoreLocation Cert:\LocalMachine\My -KeyExportPolicy Exportable -KeyLength 2048 -KeySpec Signature
-}
-catch {
-    Write-Host "Error creating certificate in My store: $_"
-    return
+
+
+function Remove-CertificatesByFriendlyName {
+    # List of certificate stores to search
+    $stores = @(
+        "CurrentUser\My",
+        "LocalMachine\My",
+        "CurrentUser\Root",
+        "LocalMachine\Root",
+        "CurrentUser\CA",
+        "LocalMachine\CA",
+        "CurrentUser\AuthRoot",
+        "LocalMachine\AuthRoot"
+    )
+
+    foreach ($storeLocation in $stores) {
+        $certs = Get-ChildItem -Path "cert:\$storeLocation" | Where-Object { $_.FriendlyName -like "*$global:friendlyName*" }
+
+        foreach ($cert in $certs) {
+            Remove-Item -LiteralPath $cert.PSPath -Force
+            Write-Host "Certificate with FriendlyName containing '$global:friendlyName' removed from $storeLocation store."
+        }
+    }
 }
 
-# Export the My store certificate to a file in the script directory
-Export-Certificate -Cert $rootCertificateMy -FilePath $rootCertificateFilePath -Force
 
-# Move the My store certificate to the Root store
-try {
-    Move-Item -Path "Cert:\LocalMachine\My\$($rootCertificateMy.Thumbprint)" -Destination "Cert:\LocalMachine\Root" -Force:$force
+Remove-CertificatesByFriendlyName
+
+
+function New-DomainCertificate {
+    param (
+        [string]$domain
+    )
+
+    $friendlyName = "$domain $global:friendlyName"
+    $expiryDate = (Get-Date).AddYears(25)
+
+    $cert = New-SelfSignedCertificate -DnsName $domain -CertStoreLocation "cert:\LocalMachine\My" -KeySpec KeyExchange -NotAfter $expiryDate -Subject "CN=$domain" -KeyExportPolicy Exportable -FriendlyName $friendlyName
+
+    $path = Join-Path -Path $scriptDir -ChildPath "..\cert\$domain.cer"
+    $path = $path -replace '\*', '.sub'
+    $pathPfx = Join-Path -Path $scriptDir -ChildPath "..\cert\$domain.pfx"
+    $pathPfx = $pathPfx -replace '\*', '.sub'
+
+    Move-Item -Path "Cert:\LocalMachine\My\$($cert.Thumbprint)" -Destination "Cert:\LocalMachine\Root" -Force:$force
+
+    if (Test-Path $path) {
+        Remove-Item -Path $path -Force
+    }
+
+    if (Test-Path $pathPfx) {
+        Remove-Item -Path $pathPfx -Force
+    }
+
+    Export-Certificate -Cert $cert -FilePath $path -Force
+    Export-PfxCertificate -Cert $cert -FilePath $pathPfx -NoClobber -Force -Password $global:certPassword
 }
-catch {
-    Write-Host "Error moving certificate from My store to Root store: $_"
-    return
+
+foreach ($domain in $domainArray) {
+    New-DomainCertificate -domain $domain
+    New-DomainCertificate -domain "*.$domain"
 }
