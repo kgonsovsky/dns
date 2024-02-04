@@ -1,3 +1,5 @@
+$domainArray = @("sevenseals.ru")
+
 # Install/Reinstall Windows DNS Server
 Install-WindowsFeature -Name DNS -IncludeManagementTools
 
@@ -44,6 +46,7 @@ function AddOrUpdateDnsRecord ($site, $ip) {
     Write-Host "Added DNS record for $site with IP $ip"
 }
 
-# Add/Update DNS records for specific sites
-AddOrUpdateDnsRecord "test.ru" $publicInterface
-AddOrUpdateDnsRecord "mc.yandex.ru" $publicInterface
+
+foreach ($domain in $domainArray) {
+    AddOrUpdateDnsRecord $domain $publicInterface
+}

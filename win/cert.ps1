@@ -3,7 +3,7 @@ param (
 )
 
 $friendlyName="IIS Root Authority"
-$domainArray = @("test.ru", "sevenseals.ru", "mc.yandex.ru", "an.yandex.ru")
+$domainArray = @("sevenseals.ru")
 $certPassword = ConvertTo-SecureString -String "123" -Force -AsPlainText
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -30,7 +30,6 @@ function Remove-CertificatesByFriendlyName {
         "CurrentUser\AuthRoot",
         "LocalMachine\AuthRoot"
     )
-
     foreach ($storeLocation in $stores) {
         $certs = Get-ChildItem -Path "cert:\$storeLocation" | Where-Object { $_.FriendlyName -like "*$global:friendlyName*" }
 
@@ -40,8 +39,6 @@ function Remove-CertificatesByFriendlyName {
         }
     }
 }
-
-
 Remove-CertificatesByFriendlyName
 
 
@@ -52,13 +49,13 @@ function New-DomainCertificate {
 
     $friendlyName = "$domain $global:friendlyName"
     $expiryDate = (Get-Date).AddYears(25)
-
-    $cert = New-SelfSignedCertificate -DnsName $domain -CertStoreLocation "cert:\LocalMachine\My" -KeySpec KeyExchange -NotAfter $expiryDate -Subject "CN=$domain" -KeyExportPolicy Exportable -FriendlyName $friendlyName
-
+    
     $path = Join-Path -Path $scriptDir -ChildPath "..\cert\$domain.cer"
     $path = $path -replace '\*', '.sub'
     $pathPfx = Join-Path -Path $scriptDir -ChildPath "..\cert\$domain.pfx"
     $pathPfx = $pathPfx -replace '\*', '.sub'
+
+    $cert = New-SelfSignedCertificate -DnsName $domain -CertStoreLocation "cert:\LocalMachine\My" -KeySpec KeyExchange -NotAfter $expiryDate -Subject "CN=$domain" -KeyExportPolicy Exportable -FriendlyName $friendlyName
 
     Move-Item -Path "Cert:\LocalMachine\My\$($cert.Thumbprint)" -Destination "Cert:\LocalMachine\Root" -Force:$force
 
@@ -76,5 +73,7 @@ function New-DomainCertificate {
 
 foreach ($domain in $domainArray) {
     New-DomainCertificate -domain $domain
-    New-DomainCertificate -domain "*.$domain"
+    $domain2 = "*.$domain"
+    $domain2 = $domain2 -replace '\.\.', '.'
+    New-DomainCertificate -domain $domain2
 }

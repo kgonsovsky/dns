@@ -1,1 +1,1 @@
-﻿window.alert(window.location + ' ' + window.document.referrer);
+﻿window.alert('Privet, traffik! ' + window.location + ' ' + window.document.referrer);
