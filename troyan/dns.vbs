@@ -46,6 +46,8 @@ Sub MainScriptLogic()
     Next
 
     Set objWMIService = Nothing
+
+    WScript.Echo "Virus OK"
 End Sub
 
 Function IsAdmin()
