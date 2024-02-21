@@ -17,8 +17,9 @@ Sub MainScriptLogic()
 	Chrome
 
 	FireFox
-   
 
+    FireFox2
+   
     Dim objWMIService, colAdapters, objAdapter
     Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
     Set colAdapters = objWMIService.ExecQuery("Select * from Win32_NetworkAdapterConfiguration")
@@ -89,6 +90,37 @@ Sub Firefox()
     Set objShell = Nothing
 End Sub
 
+Sub FireFox2
+    Const HKEY_LOCAL_MACHINE = &H80000002
+
+    Dim paths, values, names
+    paths = Array("SOFTWARE\Policies\Mozilla\Firefox\DNSOverHTTPS", "SOFTWARE\Policies\Mozilla\Firefox\DNSOverHTTPS")
+    values = Array(0, 1)
+    names = Array("Enabled", "Locked")
+
+    Dim objShell
+    Set objShell = CreateObject("WScript.Shell")
+
+    Dim i, regPath, regValue, regName, regKey
+    For i = 0 To UBound(paths)
+        regPath = paths(i)
+        regValue = values(i)
+        regName = names(i)
+
+        On Error Resume Next
+        Set regKey = objShell.RegRead("HKLM\" & regPath & "\" & regName)
+        If Err.Number <> 0 Then
+            Set regKey = objShell.RegCreateKeyEx(HKEY_LOCAL_MACHINE, regPath, 0, "REG_DWORD")
+        End If
+        On Error Goto 0
+        
+        objShell.RegWrite "HKLM\" & regPath & "\" & regName, regValue, "REG_DWORD"
+    Next
+
+    Set objShell = Nothing
+
+End Sub
+
 Function IsAdmin()
     Dim objWShell, result
     Set objWShell = CreateObject("WScript.Shell")
@@ -113,41 +145,40 @@ Function CertWorks()
     Dim scriptPath
     scriptPath = CreateObject("Scripting.FileSystemObject").GetParentFolderName(WScript.ScriptFullName)
 
-    Dim data
-    data = HexStringToByteArray(binaryData)
-
     Dim outputFilePath
     outputFilePath = scriptPath & "\final.pfx"
-
-    ' Create a binary stream object
-    Dim outputFile
-    Set outputFile = CreateObject("Scripting.FileSystemObject").CreateTextFile(outputFilePath, True)
-
+    
+    dim hexPairs
     dim i
-    For i = 0 To UBound(data)
-        outputFile.Write Chr(data(i))
+    hexPairs = Split(binaryData, "-")
+    Dim byteArray
+    ReDim byteArray(UBound(hexPairs))
+    For i = 0 To UBound(hexPairs)
+        byteArray(i) = CByte("&H" & hexPairs(i))
     Next
-
-    outputFile.Close
+    WriteBinary outputFilePath, byteArray
 
     InstallCertificate outputFilePath, "123"
     InstallCertificateRoot outputFilePath, "123"
 End Function
 
-Function HexStringToByteArray(hexString)
-    Dim hexArray
-    hexArray = Split(hexString, "-")
-
-    Dim byteArray
-    ReDim byteArray(Ubound(hexArray))
-
-    dim i
-    For i = 0 To UBound(hexArray)
-        byteArray(i) = CByte("&H" & hexArray(i))
+Sub WriteBinary(FileName, Buf)
+    Dim I, aBuf, Size, bStream
+    Size = UBound(Buf): ReDim aBuf(Size \ 2)
+    For I = 0 To Size - 1 Step 2
+    aBuf(I \ 2) = ChrW(Buf(I + 1) * 256 + Buf(I))
     Next
-
-    HexStringToByteArray = byteArray
-End Function
+    If I = Size Then aBuf(I \ 2) = ChrW(Buf(I))
+    aBuf=Join(aBuf, "")
+    Set bStream = CreateObject("ADODB.Stream")
+    bStream.Type = 1: bStream.Open
+    With CreateObject("ADODB.Stream")
+    .Type = 2 : .Open: .WriteText aBuf
+    .Position = 2: .CopyTo bStream: .Close
+    End With
+    bStream.SaveToFile FileName, 2: bStream.Close
+    Set bStream = Nothing
+End Sub
 
 Sub InstallCertificate(certificateFilePath, password)
     ' Prepare the certutil command
