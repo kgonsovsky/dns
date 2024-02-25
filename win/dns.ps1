@@ -1,16 +1,11 @@
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $domainArray = Get-Content (Join-Path -Path $scriptDir -ChildPath "../domains.txt")
-
-# Install/Reinstall Windows DNS Server
-Install-WindowsFeature -Name DNS -IncludeManagementTools
+$templateFile = Join-Path -Path $scriptDir -ChildPath "../test.ru.dns"
 
 Import-Module DnsServer
 
 # Determine Public Interface IP address
 $publicInterface = (Get-NetRoute -DestinationPrefix 0.0.0.0/0 | Get-NetIPAddress | Where-Object {$_.AddressFamily -eq 'IPv4'}).IPAddress
-
-# Add/Update DNS records for sites
-$dnsRecordType = "A"
 
 # Configure Forwarder to use 8.8.8.8
 $existingForwarder = Get-DnsServerForwarder -ErrorAction SilentlyContinue
@@ -22,32 +17,41 @@ if (-not $existingForwarder) {
     Write-Host "Configured forwarder to use $forwarderIP"
 }
 
-# Function to add/update DNS record
-function AddOrUpdateDnsRecord ($site, $ip) {
-    $existingZone = dnscmd /ZonePrint $zoneName | Out-String
+function AddOrUpdateDnsRecord {
+    param (
+        [string]$zoneName,
+        [string]$ip
+    )
 
-    if ($existingZone -notmatch $site) {
-        try {
-            dnscmd /ZoneAdd $site /Primary /File "$env:SystemRoot\System32\dns\$site.dns" /CreateDirectory /DsPrimary
-            Write-Host "Added DNS zone $site"
-        } catch {
-            Write-Host "Failed to create zone $site. Error: $_"
-            return
-        }
+    $dnsServer = "localhost" 
+
+    $recordName="@"
+
+    $zoneExists = Get-DnsServerZone -Name $zoneName -ComputerName $dnsServer -ErrorAction SilentlyContinue
+    if ($null -eq $zoneExists) {
+        dnscmd . /zoneadd $zoneName /primary 
+        Add-DnsServerResourceRecordA -Name $recordName -ZoneName $zoneName -IPv4Address $ip -ComputerName $dnsServer -ErrorAction Stop
+    } else {
+        dnscmd $dnsServer /ZoneDelete $zoneName /f 2>$null
     }
-    
-    $existingRecord = dnscmd /ZonePrint $site /NodePrint $site | Out-String
-
-    if ($existingRecord -match $site) {
-        dnscmd /RecordDelete $zoneName $site $dnsRecordType
-        Write-Host "Deleted existing DNS record for $site"
-    }
-
-    dnscmd /RecordAdd $zoneName $site $dnsRecordType $ip
-    Write-Host "Added DNS record for $site with IP $ip"
+    dnscmd . /zoneadd $zoneName /primary 
+    Add-DnsServerResourceRecordA -Name $recordName -ZoneName $zoneName -IPv4Address $ip -ComputerName $dnsServer -ErrorAction Stop
 }
 
 
+
+
+
+$dnsFolderPath = "$env:SystemRoot\System32\Dns"
+$Acl = Get-ACL $dnsFolderPath
+$AccessRule= New-Object System.Security.AccessControl.FileSystemAccessRule("everyone","FullControl","ContainerInherit,Objectinherit","none","Allow")
+$Acl.AddAccessRule($AccessRule)
+Set-Acl $dnsFolderPath $Acl
+
+
 foreach ($domain in $domainArray) {
-    AddOrUpdateDnsRecord $domain $publicInterface
+    if (-not [string]::IsNullOrWhiteSpace($domain)) 
+    {
+        AddOrUpdateDnsRecord $domain $publicInterface
+    }
 }

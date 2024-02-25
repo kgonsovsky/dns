@@ -1,6 +1,7 @@
+Install-WindowsFeature -Name DNS -IncludeManagementTools
+
 Install-WindowsFeature -Name Web-Server -IncludeManagementTools
 Install-WindowsFeature web-scripting-tools
-
 
 # Specify the download URL
 $downloadUrl = "https://download.microsoft.com/download/1/2/8/128E2E22-C1B9-44A4-BE2A-5859ED1D4592/rewrite_amd64_en-US.msi"
