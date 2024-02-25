@@ -34,6 +34,7 @@ function AddOrUpdateDnsRecord {
         dnscmd $dnsServer /ZoneDelete $zoneName /f 2>$null
     }
     dnscmd . /zoneadd $zoneName /primary 
+	Start-Sleep -Milliseconds 100
     Add-DnsServerResourceRecordA -Name $recordName -ZoneName $zoneName -IPv4Address $ip -ComputerName $dnsServer -ErrorAction Stop
 }
 

