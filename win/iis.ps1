@@ -4,8 +4,6 @@ param (
 
 Import-Module IISAdministration
 
-$domainArray = @("mc.yandex.ru")
-
 $certLocation="cert:\LocalMachine\Root"
 $certPassword = ConvertTo-SecureString -String "123" -Force -AsPlainText
 
@@ -21,6 +19,10 @@ $ruleName = "dns"
 $rulePattern = ".*"
 $ruleType = "Rewrite"
 $ruleUrl = "/index.js"
+
+
+$domainArray = Get-Content (Join-Path -Path $scriptDir -ChildPath "../domains.txt")
+
 
 # CHECK FOR MADE
 $certs = Get-ChildItem -Path $certLocation | Where-Object { $_.FriendlyName -like "*$friendlyName*" }
@@ -152,12 +154,11 @@ Defaults;
 
 # BURN
 foreach ($domain in $domainArray) {
-    Create-Certificate -domain $domain
-    Create-Website -domain $domain
-    # $domain2 = "*.$domain"
-    # $domain2 = $domain2 -replace '\.\.', '.'
-    # Create-Certificate -domain $domain2
-    # Create-Website -domain $domain2
+    if (-not [string]::IsNullOrWhiteSpace($domain)) 
+    {
+        Create-Certificate -domain $domain
+        Create-Website -domain $domain
+    }
 }
 
 IISReset

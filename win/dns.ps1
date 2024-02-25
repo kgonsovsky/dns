@@ -1,4 +1,5 @@
-$domainArray = @("sevenseals.ru")
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$domainArray = Get-Content (Join-Path -Path $scriptDir -ChildPath "../domains.txt")
 
 # Install/Reinstall Windows DNS Server
 Install-WindowsFeature -Name DNS -IncludeManagementTools
