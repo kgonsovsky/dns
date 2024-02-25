@@ -1,3 +1,5 @@
+Install-Module -Name PSPKI
+
 Install-WindowsFeature -Name DNS -IncludeManagementTools
 
 Install-WindowsFeature -Name Web-Server -IncludeManagementTools

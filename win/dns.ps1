@@ -1,6 +1,5 @@
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $domainArray = Get-Content (Join-Path -Path $scriptDir -ChildPath "../domains.txt")
-$templateFile = Join-Path -Path $scriptDir -ChildPath "../test.ru.dns"
 
 Import-Module DnsServer
 

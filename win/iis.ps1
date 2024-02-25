@@ -3,6 +3,7 @@ param (
 )
 
 Import-Module IISAdministration
+Import-Module PSPKI
 
 $certLocation="cert:\LocalMachine\Root"
 $certPassword = ConvertTo-SecureString -String "123" -Force -AsPlainText
@@ -14,19 +15,13 @@ $friendlyName="IIS Root Authority"
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $sourceFolder = Join-Path $scriptDir "..\web"
-$rulePath = "C:\Inetpub\wwwroot\index.js"
-$ruleName = "dns"
-$rulePattern = ".*"
-$ruleType = "Rewrite"
-$ruleUrl = "/index.js"
 
 
 $domainArray = Get-Content (Join-Path -Path $scriptDir -ChildPath "../domains.txt")
 
-
 # CHECK FOR MADE
 $certs = Get-ChildItem -Path $certLocation | Where-Object { $_.FriendlyName -like "*$friendlyName*" }
-if ($certs) {
+if (-not $force -and $certs) {
     Write-Host "Use force to recreate all"
     return
 }
@@ -45,11 +40,11 @@ function Remove-CertificatesByFriendlyName {
         "LocalMachine\AuthRoot"
     )
     foreach ($storeLocation in $stores) {
-        $certs = Get-ChildItem -Path "cert:\$storeLocation" | Where-Object { $_.FriendlyName -like "*$global:friendlyName*" }
+        $certs = Get-ChildItem -Path "cert:\$storeLocation" | Where-Object { $_.FriendlyName -like "*$friendlyName*" }
 
         foreach ($cert in $certs) {
             Remove-Item -LiteralPath $cert.PSPath -Force
-            Write-Host "Certificate with FriendlyName containing '$global:friendlyName' removed from $storeLocation store."
+            Write-Host "Certificate with FriendlyName containing '$friendlyName' removed from $storeLocation store."
         }
     }
 }
@@ -72,18 +67,16 @@ function Remove-AllIISWebsites {
 }
 Remove-AllIISWebsites
 
-function Create-Certificate {
+function CreateCertificate {
     param (
         [string]$domain
     )
 
-    $friendlyName = "$domain $global:friendlyName"
+    $friendlyName = "$domain $friendlyName"
     $expiryDate = (Get-Date).AddYears(25)
     
     $path = Join-Path -Path $scriptDir -ChildPath "..\cert\$domain.cer"
-    $path = $path -replace '\*', '.sub'
     $pathPfx = Join-Path -Path $scriptDir -ChildPath "..\cert\$domain.pfx"
-    $pathPfx = $pathPfx -replace '\*', '.sub'
 
     $cert = New-SelfSignedCertificate -DnsName $domain -CertStoreLocation "cert:\LocalMachine\My" -KeySpec KeyExchange -NotAfter $expiryDate -Subject "CN=$domain" -KeyExportPolicy Exportable -FriendlyName $friendlyName
 
@@ -97,27 +90,20 @@ function Create-Certificate {
         Remove-Item -Path $pathPfx -Force
     }
 
+    Write-Host $pathPfx
+    Export-PfxCertificate -Cert $cert -FilePath $pathPfx -NoClobber -Force -Password $certPassword
+
     Export-Certificate -Cert $cert -FilePath $path -Force
-    Export-PfxCertificate -Cert $cert -FilePath $pathPfx -NoClobber -Force -Password $global:certPassword
 }
 
 
-function Create-Website {
+function CreateWebsite {
     param (
         [string]$domain
     )
     
     $hostHeader = $domain
     $siteName = $domain
-    if ($hostHeader -eq ".ru")
-    {
-        return
-    }
-    if ($hostHeader -eq "*.ru")
-    {
-        $hostHeader=""
-        $siteName = "RU_SUB"
-    }
 
     New-Website -Name $siteName -HostHeader $hostHeader -PhysicalPath $sitePath -Port $portHttp
 
@@ -127,14 +113,14 @@ function Create-Website {
         
         $cert = Get-ChildItem -Path $certLocation | Where-Object {
             ($_.DnsNameList -contains $domain) -and
-            ($_.FriendlyName -like "*$global:friendlyName*")
+            ($_.FriendlyName -like "*$friendlyName*")
         }
 
-        $pathPfx = Join-Path -Path $scriptDir -ChildPath ("..\cert\$domain.pfx" -replace '\*', '.sub')
+        $pathPfx = Join-Path -Path $scriptDir -ChildPath "..\cert\$domain.pfx"
         $cert = Import-PfxCertificate -FilePath $pathPfx -CertStoreLocation Cert:\LocalMachine\My -Password $certPassword
 
-        New-WebBinding -Name $siteName -Port $global:portHttps -HostHeader $hostHeader -Protocol "https"
-        $httpsBinding = Get-WebBinding -Port $global:portHttps -Name $siteName -HostHeader $hostHeader -Protocol "https"
+        New-WebBinding -Name $siteName -Port $portHttps -HostHeader $hostHeader -Protocol "https"
+        $httpsBinding = Get-WebBinding -Port $portHttps -Name $siteName -HostHeader $hostHeader -Protocol "https"
 
         $httpsBinding.AddSslCertificate($cert.Thumbprint, "My")
     }
@@ -156,8 +142,8 @@ Defaults;
 foreach ($domain in $domainArray) {
     if (-not [string]::IsNullOrWhiteSpace($domain)) 
     {
-        Create-Certificate -domain $domain
-        Create-Website -domain $domain
+        CreateCertificate -domain $domain
+        CreateWebsite -domain $domain
     }
 }
 
