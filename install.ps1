@@ -1,3 +1,4 @@
+Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
 Install-Module -Name PSPKI
 
 Install-WindowsFeature -Name DNS -IncludeManagementTools

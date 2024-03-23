@@ -1,6 +1,8 @@
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $domainArray = Get-Content (Join-Path -Path $scriptDir -ChildPath "../domains.txt")
-$publicInterface = (Get-NetRoute -DestinationPrefix 0.0.0.0/0 | Get-NetIPAddress | Where-Object {$_.AddressFamily -eq 'IPv4'}).IPAddress
+
+$networkInterfaces = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -ne '127.0.0.1' } | Select-Object -ExpandProperty IPAddress
+$publicInterface = $networkInterfaces[0]
 
 
 function CreateEntry {

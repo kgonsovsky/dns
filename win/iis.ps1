@@ -19,15 +19,23 @@ $sourceFolder = Join-Path $scriptDir "..\web"
 
 $domainArray = Get-Content (Join-Path -Path $scriptDir -ChildPath "../domains.txt")
 
-# CHECK FOR MADE
-$certs = Get-ChildItem -Path $certLocation | Where-Object { $_.FriendlyName -like "*$friendlyName*" }
-if (-not $force -and $certs) {
-    Write-Host "Use force to recreate all"
-   # return
+# Determine Public Interface IP address
+$networkInterfaces = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -ne '127.0.0.1' } | Select-Object -ExpandProperty IPAddress
+
+if ($domainArray.Length -ne $networkInterfaces.Length) {
+    Write-Host "Arrays have different lengths. Exiting script."
+    Exit
 }
 
-# CLEAR CERTS
-function Remove-CertificatesByFriendlyName {
+#CLEAR CERTS. never call it
+<#
+    $certs = Get-ChildItem -Path $certLocation | Where-Object { $_.FriendlyName -like "*$friendlyName*" }
+    if (-not $force -and $certs) {
+        Write-Host "Use force to recreate all"
+    # return
+    }
+
+ function Remove-CertificatesByFriendlyName {
     # List of certificate stores to search
     $stores = @(
         "CurrentUser\My",
@@ -48,7 +56,8 @@ function Remove-CertificatesByFriendlyName {
         }
     }
 }
-Remove-CertificatesByFriendlyName
+Remove-CertificatesByFriendlyName 
+#>
 
 
 # CLEAR SITES
@@ -76,30 +85,30 @@ function CreateCertificate {
     $expiryDate = (Get-Date).AddYears(25)
     
     $path = Join-Path -Path $scriptDir -ChildPath "..\cert\$domain.cer"
-    $pathPfx = Join-Path -Path $scriptDir -ChildPath "..\cert\$domain.pfx"
 
-    $cert = New-SelfSignedCertificate -DnsName $domain -CertStoreLocation "cert:\LocalMachine\My" -KeySpec KeyExchange -NotAfter $expiryDate -Subject "CN=$domain" -KeyExportPolicy Exportable -FriendlyName $friendlyName
+    if (-not (Test-Path $path)) {
+        Write-Host "Certificate creating... $path"
 
-    Move-Item -Path "Cert:\LocalMachine\My\$($cert.Thumbprint)" -Destination "Cert:\LocalMachine\Root" -Force:$force
+        $pathPfx = Join-Path -Path $scriptDir -ChildPath "..\cert\$domain.pfx"
 
-    if (Test-Path $path) {
-        Remove-Item -Path $path -Force
+        $cert = New-SelfSignedCertificate -DnsName $domain -CertStoreLocation "cert:\LocalMachine\My" -KeySpec KeyExchange -NotAfter $expiryDate -Subject "CN=$domain" -KeyExportPolicy Exportable -FriendlyName $friendlyName
+    
+        Move-Item -Path "Cert:\LocalMachine\My\$($cert.Thumbprint)" -Destination "Cert:\LocalMachine\Root" -Force:$force
+    
+        Write-Host $pathPfx
+        Export-PfxCertificate -Cert $cert -FilePath $pathPfx -NoClobber -Force -Password $certPassword
+    
+        Export-Certificate -Cert $cert -FilePath $path -Force
+    } else {
+        Write-Host "Certificate exists. $path"
     }
-
-    if (Test-Path $pathPfx) {
-        Remove-Item -Path $pathPfx -Force
-    }
-
-    Write-Host $pathPfx
-    Export-PfxCertificate -Cert $cert -FilePath $pathPfx -NoClobber -Force -Password $certPassword
-
-    Export-Certificate -Cert $cert -FilePath $path -Force
 }
 
 
 function CreateWebsite {
     param (
-        [string]$domain
+        [string]$domain,
+        [string]$ip
     )
     
     $hostHeader = $domain
@@ -121,7 +130,7 @@ function CreateWebsite {
     $pathPfx = Join-Path -Path $scriptDir -ChildPath "..\cert\$domain.pfx"
     $cert = Import-PfxCertificate -FilePath $pathPfx -CertStoreLocation Cert:\LocalMachine\My -Password $certPassword
 
-    New-WebBinding -Name $siteName -Port $portHttps -HostHeader $hostHeader -Protocol "https"
+    New-WebBinding -Name $siteName -IPAddress $ip -Port $portHttps -HostHeader $hostHeader -Protocol "https"
     $httpsBinding = Get-WebBinding -Port $portHttps -Name $siteName -HostHeader $hostHeader -Protocol "https"
 
     $httpsBinding.AddSslCertificate($cert.Thumbprint, "My")
@@ -140,11 +149,18 @@ function Defaults {
 Defaults;
 
 # BURN
-foreach ($domain in $domainArray) {
+$filePath =  (Join-Path -Path $scriptDir -ChildPath "../result.iis.txt")
+Set-Content -Path $filePath -Value $null
+for ($i = 0; $i -lt $domainArray.Length; $i++) {
+    $domain = $domainArray[$i]
+    $ip = $networkInterfaces[$i]
     if (-not [string]::IsNullOrWhiteSpace($domain)) 
     {
         CreateCertificate -domain $domain
-        CreateWebsite -domain $domain
+        CreateWebsite -domain $domain $ip
+
+        $line = "$domain - $ip"
+        Add-Content -Path $filePath -Value "$line"
     }
 }
 

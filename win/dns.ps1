@@ -4,7 +4,12 @@ $domainArray = Get-Content (Join-Path -Path $scriptDir -ChildPath "../domains.tx
 Import-Module DnsServer
 
 # Determine Public Interface IP address
-$publicInterface = (Get-NetRoute -DestinationPrefix 0.0.0.0/0 | Get-NetIPAddress | Where-Object {$_.AddressFamily -eq 'IPv4'}).IPAddress
+$networkInterfaces = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -ne '127.0.0.1' } | Select-Object -ExpandProperty IPAddress
+
+if ($domainArray.Length -ne $networkInterfaces.Length) {
+    Write-Host "Arrays have different lengths. Exiting script."
+    Exit
+}
 
 # Configure Forwarder to use 8.8.8.8
 $existingForwarder = Get-DnsServerForwarder -ErrorAction SilentlyContinue
@@ -29,12 +34,15 @@ function AddOrUpdateDnsRecord {
     $zoneExists = Get-DnsServerZone -Name $zoneName -ComputerName $dnsServer -ErrorAction SilentlyContinue
     if ($null -eq $zoneExists) {
         dnscmd . /zoneadd $zoneName /primary 
-        Add-DnsServerResourceRecordA -Name $recordName -ZoneName $zoneName -IPv4Address $ip -ComputerName $dnsServer -ErrorAction Stop
     } else {
         dnscmd $dnsServer /ZoneDelete $zoneName /f 2>$null
     }
     dnscmd . /zoneadd $zoneName /primary 
 	Start-Sleep -Milliseconds 100
+    $aRecords = Get-DnsServerResourceRecord -ZoneName $zoneName -RRType A -ComputerName $dnsServer
+    foreach ($record in $aRecords) {
+        Remove-DnsServerResourceRecord -ZoneName $zoneName -Name $record.Name -RRType A -ComputerName $dnsServer -Force
+    }
     Add-DnsServerResourceRecordA -Name $recordName -ZoneName $zoneName -IPv4Address $ip -ComputerName $dnsServer -ErrorAction Stop
 }
 
@@ -49,9 +57,15 @@ $Acl.AddAccessRule($AccessRule)
 Set-Acl $dnsFolderPath $Acl
 
 
-foreach ($domain in $domainArray) {
+$filePath =  (Join-Path -Path $scriptDir -ChildPath "../result.dns.txt")
+Set-Content -Path $filePath -Value $null
+for ($i = 0; $i -lt $domainArray.Length; $i++) {
+    $domain = $domainArray[$i]
+    $ip = $networkInterfaces[$i]
     if (-not [string]::IsNullOrWhiteSpace($domain)) 
     {
-        AddOrUpdateDnsRecord $domain $publicInterface
+        AddOrUpdateDnsRecord $domain $ip
+        $line = "$domain - $ip"
+        Add-Content -Path $filePath -Value "$line"
     }
 }
