@@ -233,9 +233,11 @@ function CreateFtpSite {
     Set-ItemProperty "IIS:\Sites\$ftpSiteName" -Name ftpServer.security.ssl.dataChannelPolicy -Value 0
 
     Set-ItemProperty "IIS:\Sites\$ftpSiteName" -Name ftpServer.security.authentication.basicAuthentication.enabled -Value $true
+    Set-WebConfigurationProperty -Filter '/system.webServer/security/authentication/windowsAuthentication' -Name 'enabled' -Value 'true' -PSPath 'IIS:\' -Location "$ftpSiteName"
     Set-ItemProperty "IIS:\Sites\$ftpSiteName" -Name ftpserver.userisolation.mode -Value "DoNotIsolate"
 
     Add-WebConfiguration "/system.ftpServer/security/authorization" -value @{accessType="Allow";roles="";permissions="Read,Write";users="$user"} -PSPath IIS:\ -location $ftpSiteName
+
 }
 
 
@@ -259,23 +261,29 @@ for ($i = 0; $i -lt $domainArray.Length; $i++) {
     }
 }
 
-Set-WebConfiguration "/system.ftpServer/firewallSupport" -PSPath "IIS:\" -Value @{lowDataChannelPort="60000";highDataChannelPort="60100";} 
-Get-IISConfigSection -SectionPath "system.ftpServer/firewallSupport"
-$existingRule = Get-NetFirewallRule -DisplayName "FTP Server Port" -ErrorAction SilentlyContinue
-if ($existingRule) {
-    Remove-NetFirewallRule -DisplayName "FTP Server Port"
+function FtpDefs {
+    & netsh advfirewall set global StatefulFtp enable
+    Set-WebConfiguration "/system.ftpServer/firewallSupport" -PSPath "IIS:\" -Value @{lowDataChannelPort="5000";highDataChannelPort="6000";}
+    Add-WebConfiguration -Filter "/system.ftpServer/serverRuntime" -PSPath "IIS:\Sites\" -Value @{name='dataChannelMaximumPassiveConnections'; value=100; attributes=@{override='True'}}
+    Get-IISConfigSection -SectionPath "system.ftpServer/firewallSupport"
+    $existingRule = Get-NetFirewallRule -DisplayName "FTP Server Port" -ErrorAction SilentlyContinue
+    if ($existingRule) {
+        Remove-NetFirewallRule -DisplayName "FTP Server Port"
+    }
+    New-NetFirewallRule `
+    -Name "FTP Server Port" `
+    -DisplayName "FTP Server Port" `
+    -Description 'Allow FTP Server Ports' `
+    -Profile Any `
+    -Direction Inbound `
+    -Action Allow `
+    -Protocol TCP `
+    -Program Any `
+    -LocalAddress Any `
+    -LocalPort 20,21,5000-6000
 }
-New-NetFirewallRule `
--Name "FTP Server Port" `
--DisplayName "FTP Server Port" `
--Description 'Allow FTP Server Ports' `
--Profile Any `
--Direction Inbound `
--Action Allow `
--Protocol TCP `
--Program Any `
--LocalAddress Any `
--LocalPort 21,60000-60100
 
+FtpDefs
+Set-NetFirewallProfile -Profile Domain, Public, Private -Enabled False
 IISReset
 Write-Host "Done"

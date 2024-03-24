@@ -3,7 +3,7 @@ Install-Module -Name PSPKI
 
 Install-WindowsFeature -Name DNS -IncludeManagementTools
 
-Install-WindowsFeature -Name Web-Server, Web-Ftp-Server, Web-FTP-Ext -IncludeManagementTools
+Install-WindowsFeature -Name Web-Server, Web-Ftp-Server, Web-FTP-Ext, Web-Windows-Auth -IncludeManagementTools
 Install-WindowsFeature web-scripting-tools
 
 # Specify the download URL
@@ -21,4 +21,6 @@ Start-Process -FilePath msiexec.exe -ArgumentList "/i `"$msiPath`" /quiet" -Wait
 # Remove the downloaded MSI file
 Remove-Item -Path $msiPath -Force
 
-Install-Module -Name IISAdministration
+Enable-WindowsOptionalFeature -Online -FeatureName IIS-WindowsAuthentication
+
+Install-Module -Name IISAdministration                                        
