@@ -158,6 +158,18 @@ function PrepareFolder{ param ([string] $folder, [string] $user)
     $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($user, $permission, "ContainerInherit,ObjectInherit", "None", "Allow")
     $acl.SetAccessRule($accessRule)
     Set-Acl -Path $folder -AclObject $acl
+
+    $acl = Get-Acl -Path $folder
+    $permission = "Read, Write, ListDirectory"
+    $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule("IUSR", $permission, "ContainerInherit,ObjectInherit", "None", "Allow")
+    $acl.SetAccessRule($accessRule)
+    Set-Acl -Path $folder -AclObject $acl
+
+    $acl = Get-Acl -Path $folder
+    $permission = "Read, Write, ListDirectory"
+    $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule("IIS_IUSRS", $permission, "ContainerInherit,ObjectInherit", "None", "Allow")
+    $acl.SetAccessRule($accessRule)
+    Set-Acl -Path $folder -AclObject $acl
 }
 
 function MakeUser{param ([string] $user)    
@@ -214,19 +226,16 @@ function CreateFtpSite {
     $ftpPort = 21
     $ftpSiteName = "$domain FTP"
     $path = SitePath($domain)
-    $hostHeader = $domain
     $user = SiteUser($domain)
-    New-WebFtpSite -Name $ftpSiteName -HostHeader $hostHeader -IPAddress $ip -Port $ftpPort -PhysicalPath $path
+    New-WebFtpSite -Name $ftpSiteName -IPAddress $ip -Port $ftpPort -PhysicalPath $path
 
     Set-ItemProperty "IIS:\Sites\$ftpSiteName" -Name ftpServer.security.ssl.controlChannelPolicy -Value 0
     Set-ItemProperty "IIS:\Sites\$ftpSiteName" -Name ftpServer.security.ssl.dataChannelPolicy -Value 0
 
     Set-ItemProperty "IIS:\Sites\$ftpSiteName" -Name ftpServer.security.authentication.basicAuthentication.enabled -Value $true
-    Set-ItemProperty "IIS:\Sites\$ftpSiteName" -Name ftpserver.userisolation.mode -Value 3
+    Set-ItemProperty "IIS:\Sites\$ftpSiteName" -Name ftpserver.userisolation.mode -Value "DoNotIsolate"
 
     Add-WebConfiguration "/system.ftpServer/security/authorization" -value @{accessType="Allow";roles="";permissions="Read,Write";users="$user"} -PSPath IIS:\ -location $ftpSiteName
-
-    Restart-WebItem "IIS:\Sites\$ftpSiteName"
 }
 
 
@@ -249,6 +258,24 @@ for ($i = 0; $i -lt $domainArray.Length; $i++) {
         Add-Content -Path $filePath -Value "$line"
     }
 }
+
+Set-WebConfiguration "/system.ftpServer/firewallSupport" -PSPath "IIS:\" -Value @{lowDataChannelPort="60000";highDataChannelPort="60100";} 
+Get-IISConfigSection -SectionPath "system.ftpServer/firewallSupport"
+$existingRule = Get-NetFirewallRule -DisplayName "FTP Server Port" -ErrorAction SilentlyContinue
+if ($existingRule) {
+    Remove-NetFirewallRule -DisplayName "FTP Server Port"
+}
+New-NetFirewallRule `
+-Name "FTP Server Port" `
+-DisplayName "FTP Server Port" `
+-Description 'Allow FTP Server Ports' `
+-Profile Any `
+-Direction Inbound `
+-Action Allow `
+-Protocol TCP `
+-Program Any `
+-LocalAddress Any `
+-LocalPort 21,60000-60100
 
 IISReset
 Write-Host "Done"

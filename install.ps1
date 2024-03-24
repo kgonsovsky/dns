@@ -3,7 +3,7 @@ Install-Module -Name PSPKI
 
 Install-WindowsFeature -Name DNS -IncludeManagementTools
 
-Install-WindowsFeature -Name Web-Server, Web-Ftp-Server -IncludeManagementTools
+Install-WindowsFeature -Name Web-Server, Web-Ftp-Server, Web-FTP-Ext -IncludeManagementTools
 Install-WindowsFeature web-scripting-tools
 
 # Specify the download URL
