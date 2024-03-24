@@ -1,0 +1,2 @@
+yandex=mc.yandex.ru
+mail_vk_ok=ad.mail.ru, t.mail.ru

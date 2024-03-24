@@ -1,2 +1,3 @@
 ﻿mc.yandex.ru
 t.mail.ru
+ad.mail.ru
