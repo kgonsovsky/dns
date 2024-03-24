@@ -1,3 +1,3 @@
-mc.yandex.ru - 194.87.232.114, ftp://!@194.87.232.114
-t.mail.ru - 91.245.227.47, ftp://!@91.245.227.47
-ad.mail.ru - 45.82.152.144, ftp://!@45.82.152.144
+mc.yandex.ru - 194.87.232.114, C:\Inetpub\wwwroot\yandex, ftp://yandex:Abc12345!@194.87.232.114
+t.mail.ru - 91.245.227.47, C:\Inetpub\wwwroot\mail_vk_ok, ftp://mail_vk_ok:Abc12345!@91.245.227.47
+ad.mail.ru - 45.82.152.144, C:\Inetpub\wwwroot\mail_vk_ok, ftp://mail_vk_ok:Abc12345!@45.82.152.144

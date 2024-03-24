@@ -243,8 +243,9 @@ for ($i = 0; $i -lt $domainArray.Length; $i++) {
         CreateFtpsite -domain $domain $ip
 
         $user = SiteUser -domain $domain
+        $path = SitePath -domain $domain
 
-        $line = "$domain - $ip, ftp://" + "$user:Abc12345!@$ip"
+        $line = "$domain - $ip, $path, ftp://${user}:Abc12345!@$ip"
         Add-Content -Path $filePath -Value "$line"
     }
 }
